@@ -9,12 +9,14 @@ try:
     from .extractor import extract_requirements, ExtractionServiceError
     from .normalizer import normalize_data
     from .excel_writer import save_to_excel
+    from .mongo_store import init_db, store_extractions, store_processing_log, get_records as fetch_records
 except ImportError:
     from parser import extract_text_from_pdf
     from utils import chunk_text
     from extractor import extract_requirements, ExtractionServiceError
     from normalizer import normalize_data
     from excel_writer import save_to_excel
+    from mongo_store import init_db, store_extractions, store_processing_log, get_records as fetch_records
 
 app = FastAPI()
 
@@ -23,6 +25,13 @@ OUTPUT_DIR = "outputs"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+init_db()
+
+
+@app.get("/records/")
+def get_records(limit: int = 25):
+    return fetch_records(limit)
 
 
 @app.post("/upload/")
@@ -39,6 +48,8 @@ async def upload_file(file: UploadFile = File(...)):
     chunks = chunk_text(text)
 
     all_data = []
+    status = "success"
+    error_message = ""
 
     try:
         for chunk in chunks:
@@ -46,6 +57,9 @@ async def upload_file(file: UploadFile = File(...)):
             normalized = normalize_data(raw)
             all_data.extend(normalized)
     except ExtractionServiceError as e:
+        status = "failed"
+        error_message = str(e)
+        store_processing_log(file.filename, "", 0, status, error_message)
         raise HTTPException(status_code=503, detail=f"Extraction failed: {e}")
 
     # Save output
@@ -53,6 +67,9 @@ async def upload_file(file: UploadFile = File(...)):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = f"{OUTPUT_DIR}/{safe_name}_{timestamp}.xlsx"
     save_to_excel(all_data, output_file)
+
+    store_extractions(all_data, file.filename, output_file)
+    store_processing_log(file.filename, output_file, len(all_data), status, error_message)
 
     return {
         "message": "Done",
