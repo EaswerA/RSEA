@@ -1,12 +1,20 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 import shutil
 import os
+from datetime import datetime
 
-from parser import extract_text_from_pdf
-from utils import chunk_text
-from extractor import extract_requirements
-from normalizer import normalize_data
-from excel_writer import save_to_excel
+try:
+    from .parser import extract_text_from_pdf
+    from .utils import chunk_text
+    from .extractor import extract_requirements, ExtractionServiceError
+    from .normalizer import normalize_data
+    from .excel_writer import save_to_excel
+except ImportError:
+    from parser import extract_text_from_pdf
+    from utils import chunk_text
+    from extractor import extract_requirements, ExtractionServiceError
+    from normalizer import normalize_data
+    from excel_writer import save_to_excel
 
 app = FastAPI()
 
@@ -32,13 +40,18 @@ async def upload_file(file: UploadFile = File(...)):
 
     all_data = []
 
-    for chunk in chunks:
-        raw = extract_requirements(chunk)
-        normalized = normalize_data(raw)
-        all_data.extend(normalized)
+    try:
+        for chunk in chunks:
+            raw = extract_requirements(chunk)
+            normalized = normalize_data(raw)
+            all_data.extend(normalized)
+    except ExtractionServiceError as e:
+        raise HTTPException(status_code=503, detail=f"Extraction failed: {e}")
 
     # Save output
-    output_file = f"{OUTPUT_DIR}/{file.filename}.xlsx"
+    safe_name = os.path.splitext(file.filename)[0]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"{OUTPUT_DIR}/{safe_name}_{timestamp}.xlsx"
     save_to_excel(all_data, output_file)
 
     return {
