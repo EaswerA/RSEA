@@ -1,0 +1,26 @@
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Python cache/build
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# Virtual environment
+.venv/
+venv/
+
+# Runtime artifacts
+outputs/
+uploads/
+*.sqlite
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/

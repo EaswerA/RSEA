@@ -6,126 +6,73 @@ import json
 
 load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
+DEFAULT_MODEL_CANDIDATES = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"]
 
 
 class ExtractionServiceError(Exception):
     pass
 
 
-def _local_extract_requirements(chunk):
-    hardware_keywords = {
-        "cpu": "cpu",
-        "processor": "cpu",
-        "ram": "ram",
-        "memory": "ram",
-        "storage": "storage",
-        "ssd": "storage",
-        "hdd": "storage",
-        "server": "server",
-        "switch": "network",
-        "router": "network",
-        "firewall appliance": "network",
-    }
+def _model_candidates():
+    explicit_model = os.getenv("GEMINI_MODEL", "").strip()
+    if explicit_model:
+        return [explicit_model]
 
-    software_keywords = {
-        "windows": "os",
-        "linux": "os",
-        "ubuntu": "os",
-        "red hat": "os",
-        "firewall": "firewall",
-        "antivirus": "security",
-        "authentication": "authentication",
-        "access control": "access control",
-        "log": "logging",
-        "audit": "logging",
-        "encryption": "security",
-        "ssl": "security",
-        "tls": "security",
-    }
+    configured = os.getenv("GEMINI_MODEL_CANDIDATES", "").strip()
+    if configured:
+        models = [m.strip() for m in configured.split(",") if m.strip()]
+        if models:
+            return models
 
-    value_unit_pattern = re.compile(r"(\d+(?:\.\d+)?)\s*(tb|gb|mb|kb|ghz|mhz|cores?)", re.IGNORECASE)
-
-    items = []
-    seen = set()
-    lines = re.split(r"[\n\r\.]+", chunk)
-
-    for raw_line in lines:
-        line = raw_line.strip()
-        if not line:
-            continue
-
-        lower_line = line.lower()
-        matched = False
-
-        for keyword, component in hardware_keywords.items():
-            if keyword in lower_line:
-                value = ""
-                unit = ""
-                match = value_unit_pattern.search(line)
-                if match:
-                    value = match.group(1)
-                    unit = match.group(2).upper()
-
-                key = ("Hardware", component, line)
-                if key not in seen:
-                    seen.add(key)
-                    items.append({
-                        "type": "Hardware",
-                        "component": component,
-                        "value": value,
-                        "unit": unit,
-                        "description": line,
-                        "confidence": 0.35,
-                    })
-                matched = True
-                break
-
-        if matched:
-            continue
-
-        for keyword, component in software_keywords.items():
-            if keyword in lower_line:
-                key = ("Software", component, line)
-                if key not in seen:
-                    seen.add(key)
-                    items.append({
-                        "type": "Software",
-                        "component": component,
-                        "value": "",
-                        "unit": "",
-                        "description": line,
-                        "confidence": 0.35,
-                    })
-                break
-
-    return items
+    return DEFAULT_MODEL_CANDIDATES
 
 
 def call_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+    if not API_KEY:
+        raise ExtractionServiceError("GEMINI_API_KEY is not set.")
+
     headers = {"Content-Type": "application/json"}
 
     data = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    try:
-        response = requests.post(url, headers=headers, json=data, timeout=60)
-        payload = response.json()
+    attempted = []
+    last_error = None
 
-        if response.status_code >= 400:
-            message = payload.get("error", {}).get("message", "Gemini API request failed")
-            raise ExtractionServiceError(message)
+    for model_name in _model_candidates():
+        attempted.append(model_name)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={API_KEY}"
 
-        if "error" in payload:
-            message = payload.get("error", {}).get("message", "Gemini API returned an error")
-            raise ExtractionServiceError(message)
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=60)
+            payload = response.json()
 
-        return payload
-    except ExtractionServiceError:
-        raise
-    except Exception as e:
-        raise ExtractionServiceError(f"Gemini request failed: {e}")
+            if response.status_code >= 400:
+                message = payload.get("error", {}).get("message", "Gemini API request failed")
+                last_error = f"{model_name}: {message}"
+                # Try next model if this one is unavailable, quota-limited, or temporarily failing.
+                if response.status_code in {400, 403, 404, 429, 500, 502, 503}:
+                    continue
+                raise ExtractionServiceError(last_error)
+
+            if "error" in payload:
+                message = payload.get("error", {}).get("message", "Gemini API returned an error")
+                last_error = f"{model_name}: {message}"
+                continue
+
+            return payload
+        except requests.RequestException as e:
+            last_error = f"{model_name}: network error: {e}"
+            continue
+        except ValueError:
+            last_error = f"{model_name}: invalid JSON response from API"
+            continue
+
+    attempted_text = ", ".join(attempted) if attempted else "none"
+    raise ExtractionServiceError(
+        f"Gemini request failed for models [{attempted_text}]. Last error: {last_error or 'unknown error'}"
+    )
 
 
 def clean_json_response(text):
@@ -138,9 +85,7 @@ def safe_json_load(text):
     try:
         return json.loads(text)
     except Exception as e:
-        print("JSON LOAD ERROR:", e)
-        print("RAW TEXT:", text)
-        return []
+        raise ExtractionServiceError(f"Invalid JSON from Gemini: {e}")
 
 
 def extract_requirements(chunk):
@@ -182,32 +127,23 @@ def extract_requirements(chunk):
     {chunk}
     """
 
-    fallback_enabled = os.getenv("ALLOW_LOCAL_FALLBACK", "1") in {"1", "true", "True", "yes", "YES"}
-
-    try:
-        response = call_gemini(prompt)
-    except ExtractionServiceError as e:
-        if fallback_enabled:
-            print("GEMINI UNAVAILABLE, USING LOCAL FALLBACK:", e)
-            return _local_extract_requirements(chunk)
-        raise
+    response = call_gemini(prompt)
 
     print("\n🔍 RAW GEMINI RESPONSE:\n", response)  # DEBUG
 
     try:
         raw_text = response['candidates'][0]['content']['parts'][0]['text']
-        cleaned = clean_json_response(raw_text)
-
-        print("\n🧹 CLEANED TEXT:\n", cleaned)  # DEBUG
-
-        parsed = safe_json_load(cleaned)
-
-        print("\n✅ PARSED OUTPUT:\n", parsed)  # DEBUG
-
-        return parsed
-
     except Exception as e:
-        if fallback_enabled:
-            print("INVALID GEMINI FORMAT, USING LOCAL FALLBACK:", e)
-            return _local_extract_requirements(chunk)
         raise ExtractionServiceError(f"Unexpected Gemini response format: {e}")
+
+    cleaned = clean_json_response(raw_text)
+
+    print("\n🧹 CLEANED TEXT:\n", cleaned)  # DEBUG
+
+    parsed = safe_json_load(cleaned)
+    if not isinstance(parsed, list):
+        raise ExtractionServiceError("Gemini returned non-list JSON for extraction output.")
+
+    print("\n✅ PARSED OUTPUT:\n", parsed)  # DEBUG
+
+    return parsed

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RSEA Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="shell">
+      <header class="hero reveal">
+        <p class="tag">RSEA</p>
+        <h1>Tender Extraction Console</h1>
+        <p class="subtitle">
+          Upload a PDF, extract structured requirements with Gemini, and review the latest records stored in MongoDB.
+        </p>
+      </header>
+
+      <section class="card reveal delay-1">
+        <h2>Upload PDF</h2>
+        <form id="upload-form" class="upload-grid">
+          <label class="file-picker">
+            <input id="pdf-input" type="file" accept="application/pdf" required />
+            <span id="file-label">Choose a PDF file</span>
+          </label>
+          <button id="upload-btn" type="submit">Extract Now</button>
+        </form>
+        <p id="upload-status" class="status"></p>
+      </section>
+
+      <section class="card reveal delay-2">
+        <div class="records-head">
+          <h2>Latest Records</h2>
+          <button id="refresh-btn" type="button">Refresh</button>
+        </div>
+        <div id="summary" class="summary"></div>
+
+        <h3>Recent Extraction Rows</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Component</th>
+                <th>Type</th>
+                <th>Value</th>
+                <th>Confidence</th>
+                <th>Output</th>
+              </tr>
+            </thead>
+            <tbody id="extractions-body"></tbody>
+          </table>
+        </div>
+
+        <h3>Processing Logs</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Items</th>
+                <th>Created</th>
+                <th>Output</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>
