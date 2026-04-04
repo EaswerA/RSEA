@@ -21,11 +21,27 @@
         <p class="tag">RSEA</p>
         <h1>Tender Extraction Console</h1>
         <p class="subtitle">
-          Upload a PDF, extract structured requirements with Gemini, and review the latest records stored in MongoDB.
+          Sign in to your workspace, upload PDFs, and review only your own extraction records and output files.
         </p>
       </header>
 
       <section class="card reveal delay-1">
+        <div class="records-head">
+          <h2>Account</h2>
+          <button id="logout-btn" type="button">Log out</button>
+        </div>
+        <p id="auth-summary" class="summary">Not signed in.</p>
+        <form id="auth-form" class="auth-grid">
+          <input id="username-input" type="text" placeholder="Username" autocomplete="username" required />
+          <input id="password-input" type="password" placeholder="Password" autocomplete="current-password" required />
+          <div class="auth-actions">
+            <button id="login-btn" type="button">Log in</button>
+            <button id="register-btn" type="button">Register</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card reveal delay-2">
         <h2>Upload PDF</h2>
         <form id="upload-form" class="upload-grid">
           <label class="file-picker">
@@ -37,7 +53,7 @@
         <p id="upload-status" class="status"></p>
       </section>
 
-      <section class="card reveal delay-2">
+      <section class="card reveal delay-3">
         <div class="records-head">
           <h2>Latest Records</h2>
           <button id="refresh-btn" type="button">Refresh</button>

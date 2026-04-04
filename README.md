@@ -5,6 +5,8 @@ RSEA extracts hardware/software requirements from uploaded tender PDFs, saves ex
 ## What Is Implemented
 
 - FastAPI backend for upload/extraction APIs
+- Username/password authentication with token-based sessions
+- User-isolated uploads, outputs, and records
 - Gemini-based extraction pipeline (model-first)
 - MongoDB as runtime storage
 - Frontend dashboard for upload + viewing latest records
@@ -84,28 +86,33 @@ Open URLs:
 
 Download generated output files:
 
-- http://127.0.0.1:8000/files/<filename.xlsx>
+- Requires a valid session token (frontend handles this automatically)
 
 ## Frontend Usage
 
 1. Open frontend URL.
-2. Choose a PDF file.
-3. Click `Extract Now`.
-4. Review `Latest Records` tables.
-5. Click output filename links to download generated Excel files.
+2. Register a user account (first time only), then log in.
+3. Choose a PDF file.
+4. Click `Extract Now`.
+5. Review `Latest Records` tables (shows only your own records).
+6. Click output filename links to download your files.
 
 ## Backend API Endpoints
 
 - `GET /` -> serves frontend dashboard
 - `GET /docs` -> Swagger UI
+- `POST /auth/register` -> create username/password account
+- `POST /auth/login` -> obtain session token
+- `GET /auth/me` -> validate current token and return logged-in username
 - `POST /upload/` -> upload PDF and run extraction
-- `GET /records/?limit=25` -> latest extraction rows + processing logs
-- `GET /files/{filename}` -> static output file serving
+- `GET /records/?limit=25` -> latest extraction rows + processing logs for logged-in user
+- `GET /files/{filename}?token=...` -> authenticated output file download
 
 ## MongoDB Storage Model
 
 Collections used:
 
+- `users`
 - `extractions`
 - `processing_logs`
 

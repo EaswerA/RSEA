@@ -102,6 +102,31 @@ body {
   gap: 12px;
 }
 
+.auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.auth-grid input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.auth-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+}
+
+#logout-btn {
+  background: linear-gradient(90deg, #64748b, #334155);
+}
+
 .file-picker {
   display: flex;
   align-items: center;
@@ -210,6 +235,10 @@ a.file-link:hover {
   animation-delay: 0.16s;
 }
 
+.delay-3 {
+  animation-delay: 0.24s;
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -223,6 +252,10 @@ a.file-link:hover {
 
 @media (max-width: 760px) {
   .upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-grid {
     grid-template-columns: 1fr;
   }
 
