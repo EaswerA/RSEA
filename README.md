@@ -161,7 +161,6 @@ Distinct stored source/output files:
 ### Confidence Score Notes
 
 - Confidence is returned by Gemini output.
-- It is not currently recalibrated by a custom scoring algorithm in backend.
 
 ## Migration: SQLite to MongoDB (Legacy Data)
 
