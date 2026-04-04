@@ -46,8 +46,10 @@ def init_db() -> None:
 
 
 def _get_secret_key() -> str:
-    # Fallback makes local setup work; production should always set APP_SECRET_KEY.
-    return os.getenv("APP_SECRET_KEY", "change-this-local-dev-secret")
+    secret = os.getenv("APP_SECRET_KEY", "").strip()
+    if len(secret) < 32:
+        raise RuntimeError("APP_SECRET_KEY is missing or too short. Set APP_SECRET_KEY to at least 32 characters.")
+    return secret
 
 
 def _hash_password(password: str, salt: str) -> str:

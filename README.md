@@ -61,7 +61,16 @@ pip install -r requirements.txt
 ```env
 GEMINI_API_KEY=your_key_here
 MONGODB_URI=mongodb://localhost:27017/rsea
+APP_SECRET_KEY=your_long_random_secret_here
 GEMINI_MODEL_CANDIDATES=gemini-2.0-flash,gemini-1.5-flash,gemini-2.5-flash,gemini-2.5-pro
+```
+
+Generate a secure APP_SECRET_KEY (PowerShell):
+
+```powershell
+$bytes = New-Object byte[] 64
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
 ```
 
 Optional variables:
